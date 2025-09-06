@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { GameState, Player, Enemy, Projectile } from "@/types/game";
+import { GameState, Player, Enemy, Projectile, Star } from "@/types/game";
 import { getRandomQuestion } from "@/data/questions";
 import { GameButton } from "@/components/ui/game-button";
 import playerShipImg from "@/assets/player-ship.png";
 import enemyShipImg from "@/assets/enemy-ship.png";
 import laserProjectileImg from "@/assets/laser-projectile.png";
-import spaceBackgroundImg from "@/assets/space-background.png";
 
 interface GameScreenProps {
   gameState: GameState;
@@ -23,7 +22,6 @@ const GameScreen = ({ gameState, onGameStateChange, onGameOver, onPause }: GameS
   const playerImgRef = useRef<HTMLImageElement>();
   const enemyImgRef = useRef<HTMLImageElement>();
   const laserImgRef = useRef<HTMLImageElement>();
-  const backgroundImgRef = useRef<HTMLImageElement>();
 
   const [player, setPlayer] = useState<Player>({
     x: 400,
@@ -37,13 +35,44 @@ const GameScreen = ({ gameState, onGameStateChange, onGameOver, onPause }: GameS
   const [lastQuestionTime, setLastQuestionTime] = useState(0);
   const [questionAnswered, setQuestionAnswered] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [stars, setStars] = useState<Star[]>([]);
 
   const CANVAS_WIDTH = 800;
   const CANVAS_HEIGHT = 600;
   const PLAYER_SPEED = 5;
   const PROJECTILE_SPEED = 8;
-  const ENEMY_SPEED = 1 + (gameState.level * 0.2);
-  const QUESTION_INTERVAL = 10000; // 10 seconds
+  
+  // Dynamic difficulty calculation
+  const getEnemySpeed = () => {
+    const timePlayed = (Date.now() - gameState.gameStartTime) / 1000; // seconds
+    const accuracyBonus = gameState.totalAnswers > 0 ? (gameState.correctAnswers / gameState.totalAnswers) : 0;
+    const baseSpeed = 1;
+    const timeBonus = Math.min(timePlayed / 60, 3); // Max 3x speed bonus after 3 minutes
+    const accuracyMultiplier = 1 + (accuracyBonus * 0.5); // Up to 50% speed increase for high accuracy
+    return baseSpeed + (gameState.level * 0.3) + timeBonus * accuracyMultiplier;
+  };
+  
+  const ENEMY_SPEED = getEnemySpeed();
+  const QUESTION_INTERVAL = Math.max(8000 - (gameState.level * 500), 4000); // Faster questions as level increases
+
+  // Initialize stars background
+  useEffect(() => {
+    const initializeStars = () => {
+      const newStars: Star[] = [];
+      for (let i = 0; i < 100; i++) {
+        newStars.push({
+          x: Math.random() * CANVAS_WIDTH,
+          y: Math.random() * CANVAS_HEIGHT,
+          size: Math.random() * 2 + 1,
+          speed: Math.random() * 1 + 0.5,
+          opacity: Math.random() * 0.8 + 0.2
+        });
+      }
+      setStars(newStars);
+    };
+    
+    initializeStars();
+  }, []);
 
   // Load sprite images
   useEffect(() => {
@@ -58,10 +87,6 @@ const GameScreen = ({ gameState, onGameStateChange, onGameOver, onPause }: GameS
     const laserImg = new Image();
     laserImg.src = laserProjectileImg;
     laserImgRef.current = laserImg;
-
-    const backgroundImg = new Image();
-    backgroundImg.src = spaceBackgroundImg;
-    backgroundImgRef.current = backgroundImg;
   }, []);
 
   // Generate new question with enemies
@@ -176,14 +201,36 @@ const GameScreen = ({ gameState, onGameStateChange, onGameOver, onPause }: GameS
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Draw background
-      if (backgroundImgRef.current && backgroundImgRef.current.complete) {
-        ctx.drawImage(backgroundImgRef.current, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      } else {
-        // Fallback background
-        ctx.fillStyle = '#0f0f23';
-        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      }
+      // Draw space background with animated stars
+      const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+      gradient.addColorStop(0, '#0c0f1a');
+      gradient.addColorStop(0.3, '#1a1a2e');
+      gradient.addColorStop(0.6, '#16213e');
+      gradient.addColorStop(1, '#0f3460');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+      // Update and draw stars
+      setStars(prevStars => {
+        return prevStars.map(star => {
+          let newY = star.y + star.speed;
+          if (newY > CANVAS_HEIGHT) {
+            newY = -5;
+          }
+          return { ...star, y: newY };
+        });
+      });
+
+      // Draw stars
+      stars.forEach(star => {
+        ctx.save();
+        ctx.globalAlpha = star.opacity;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
 
       // Update player position
       setPlayer(prev => {
@@ -234,14 +281,26 @@ const GameScreen = ({ gameState, onGameStateChange, onGameOver, onPause }: GameS
                 // Collision detected
                 if (!questionAnswered) {
                   const scoreChange = enemy.isCorrect ? 10 : -5;
+                  const newCorrectAnswers = gameState.correctAnswers + (enemy.isCorrect ? 1 : 0);
+                  const newTotalAnswers = gameState.totalAnswers + 1;
+                  
                   onGameStateChange({
-                    score: gameState.score + scoreChange
+                    score: gameState.score + scoreChange,
+                    correctAnswers: newCorrectAnswers,
+                    totalAnswers: newTotalAnswers
                   });
 
                   if (!enemy.isCorrect) {
                     onGameStateChange({
                       lives: gameState.lives - 1
                     });
+                  } else {
+                    // Level up every 5 correct answers
+                    if (newCorrectAnswers % 5 === 0) {
+                      onGameStateChange({
+                        level: gameState.level + 1
+                      });
+                    }
                   }
 
                   setQuestionAnswered(true);
@@ -301,24 +360,20 @@ const GameScreen = ({ gameState, onGameStateChange, onGameOver, onPause }: GameS
 
       // Draw enemies
       enemies.forEach(enemy => {
-        // Draw enemy sprite
+        // Draw enemy sprite - all enemies look the same now
         if (enemyImgRef.current && enemyImgRef.current.complete) {
           ctx.drawImage(enemyImgRef.current, enemy.x, enemy.y, enemy.width, enemy.height);
         } else {
-          // Fallback rectangle
-          ctx.fillStyle = enemy.isCorrect ? '#00ff88' : '#ff4444';
+          // Fallback rectangle - same appearance for all enemies
+          ctx.fillStyle = '#ff4444';
           ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
-          ctx.strokeStyle = enemy.isCorrect ? '#88ffaa' : '#ffaaaa';
+          ctx.strokeStyle = '#ffaaaa';
           ctx.lineWidth = 2;
           ctx.strokeRect(enemy.x, enemy.y, enemy.width, enemy.height);
         }
 
-        // Add color overlay for correct/incorrect answers
-        if (enemy.isCorrect) {
-          ctx.fillStyle = 'rgba(0, 255, 136, 0.3)';
-        } else {
-          ctx.fillStyle = 'rgba(255, 68, 68, 0.3)';
-        }
+        // Subtle red glow for all enemies (no distinction)
+        ctx.fillStyle = 'rgba(255, 68, 68, 0.2)';
         ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
 
         // Draw answer text
@@ -367,7 +422,7 @@ const GameScreen = ({ gameState, onGameStateChange, onGameOver, onPause }: GameS
   ]);
 
   return (
-    <div className="min-h-screen bg-gradient-space flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-galaxy flex flex-col items-center justify-center p-4">
       {/* HUD */}
       <div className="flex justify-between items-center w-full max-w-4xl mb-4 text-foreground">
         <div className="flex space-x-6">
@@ -409,7 +464,7 @@ const GameScreen = ({ gameState, onGameStateChange, onGameOver, onPause }: GameS
         ref={canvasRef}
         width={CANVAS_WIDTH}
         height={CANVAS_HEIGHT}
-        className="border border-border rounded-lg bg-game-bg shadow-neon"
+        className="game-canvas rounded-lg"
       />
 
       {/* Controls */}

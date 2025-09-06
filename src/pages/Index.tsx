@@ -13,7 +13,10 @@ const Index = () => {
     level: 1,
     currentQuestion: null,
     gameStatus: 'menu',
-    selectedTheme: null
+    selectedTheme: null,
+    gameStartTime: 0,
+    correctAnswers: 0,
+    totalAnswers: 0
   });
 
   const [finalScore, setFinalScore] = useState(0);
@@ -34,7 +37,10 @@ const Index = () => {
       score: 0,
       lives: 3,
       level: 1,
-      currentQuestion: null
+      currentQuestion: null,
+      gameStartTime: Date.now(),
+      correctAnswers: 0,
+      totalAnswers: 0
     }));
   };
 
@@ -50,7 +56,10 @@ const Index = () => {
       lives: 3,
       level: 1,
       currentQuestion: null,
-      gameStatus: 'playing'
+      gameStatus: 'playing',
+      gameStartTime: Date.now(),
+      correctAnswers: 0,
+      totalAnswers: 0
     }));
   };
 
@@ -62,7 +71,10 @@ const Index = () => {
       currentQuestion: null,
       score: 0,
       lives: 3,
-      level: 1
+      level: 1,
+      gameStartTime: 0,
+      correctAnswers: 0,
+      totalAnswers: 0
     }));
   };
 
@@ -129,7 +141,7 @@ const Index = () => {
 
     case 'paused':
       return (
-        <div className="min-h-screen bg-gradient-space flex flex-col items-center justify-center p-4">
+        <div className="min-h-screen bg-galaxy flex flex-col items-center justify-center p-4">
           <div className="text-center space-y-6">
             <h1 className="text-4xl font-bold text-foreground">JOGO PAUSADO</h1>
             <div className="space-y-4">
