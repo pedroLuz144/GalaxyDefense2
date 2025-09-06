@@ -13,6 +13,9 @@ export interface GameState {
   currentQuestion: Question | null;
   gameStatus: 'menu' | 'theme-select' | 'playing' | 'paused' | 'game-over' | 'ranking';
   selectedTheme: Theme | null;
+  gameStartTime: number;
+  correctAnswers: number;
+  totalAnswers: number;
 }
 
 export interface Player {
@@ -50,4 +53,12 @@ export interface RankingEntry {
   score: number;
   theme: Theme;
   date: string;
+}
+
+export interface Star {
+  x: number;
+  y: number;
+  size: number;
+  speed: number;
+  opacity: number;
 }

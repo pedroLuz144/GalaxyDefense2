@@ -7,7 +7,7 @@ interface MenuScreenProps {
 
 const MenuScreen = ({ onStartGame, onShowRanking }: MenuScreenProps) => {
   return (
-    <div className="min-h-screen bg-gradient-space flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-galaxy flex flex-col items-center justify-center p-4">
       <div className="text-center space-y-8 max-w-2xl">
         <div className="space-y-4">
           <h1 className="text-6xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">

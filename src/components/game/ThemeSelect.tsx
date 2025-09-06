@@ -31,7 +31,7 @@ const ThemeSelect = ({ onThemeSelect, onBackToMenu }: ThemeSelectProps) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-space flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-galaxy flex flex-col items-center justify-center p-4">
       <div className="text-center space-y-8 max-w-4xl">
         <div className="space-y-4">
           <h1 className="text-4xl font-bold text-foreground">
